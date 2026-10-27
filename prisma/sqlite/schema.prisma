@@ -1,0 +1,200 @@
+generator client {
+ provider = "prisma-client-js"
+ output = "../../node_modules/.prisma/sqlite-client"
+}
+datasource db {
+ provider = "sqlite"
+ url = env("SQLITE_DATABASE_URL")
+}
+model User {
+ id String @id
+ name String
+ email String @unique
+ emailVerified Boolean @default(false)
+ image String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ sessions Session[]
+ accounts Account[]
+ events Event[]
+}
+model Session {
+ id String @id
+ expiresAt DateTime
+ token String @unique
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ ipAddress String?
+ userAgent String?
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([userId])
+}
+model Account {
+ id String @id
+ accountId String
+ providerId String
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ accessToken String?
+ refreshToken String?
+ idToken String?
+ accessTokenExpiresAt DateTime?
+ refreshTokenExpiresAt DateTime?
+ scope String?
+ password String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([userId])
+}
+model Verification {
+ id String @id
+ identifier String
+ value String
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([identifier])
+}
+model Event {
+ id String @id @default(cuid())
+ hostId String
+ host User @relation(fields:[hostId],references:[id],onDelete:Cascade)
+ type String
+ title String
+ names String
+ timezone String @default("Asia/Kolkata")
+ welcome String @default("")
+ expected Int @default(0)
+ deadline DateTime?
+ published Boolean @default(false)
+ paymentStatus String @default("LOCAL_FREE")
+ version Int @default(0)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ functions Function[]
+ households Household[]
+ preference NotificationPreference?
+ @@index([hostId])
+}
+model NotificationPreference {
+ eventId String @id
+ event Event @relation(fields:[eventId],references:[id],onDelete:Cascade)
+ enabled Boolean @default(true)
+}
+model Function {
+ id String @id @default(cuid())
+ eventId String
+ event Event @relation(fields:[eventId],references:[id],onDelete:Cascade)
+ name String
+ startsAt DateTime
+ venue String
+ address String
+ mapUrl String @default("")
+ themeEnabled Boolean @default(false)
+ theme String @default("")
+ outfit String @default("")
+ colours String @default("")
+ guidance String @default("Suggested")
+ catering Boolean @default(false)
+ currency String @default("INR")
+ adultRate Int @default(0)
+ childRate Int?
+ fixed Int @default(0)
+ budget Int?
+ buffer Int @default(0)
+ invitations InvitedFunction[]
+ attendance Attendance[]
+ @@index([eventId])
+}
+model Household {
+ id String @id @default(cuid())
+ eventId String
+ event Event @relation(fields:[eventId],references:[id],onDelete:Cascade)
+ name String
+ contact String @default("")
+ email String @default("")
+ phone String @default("")
+ maxPeople Int?
+ invited Boolean @default(false)
+ responded Boolean @default(false)
+ notes String @default("")
+ source String @default("Guest")
+ version Int @default(0)
+ requestKey String? @unique
+ updatedAt DateTime @updatedAt
+ members Member[]
+ attendance Attendance[]
+ functions InvitedFunction[]
+ tokens PrivateToken[]
+ history ChangeHistory[]
+ @@index([eventId,responded])
+}
+model InvitedFunction {
+ householdId String
+ household Household @relation(fields:[householdId],references:[id],onDelete:Cascade)
+ functionId String
+ function Function @relation(fields:[functionId],references:[id],onDelete:Cascade)
+ @@id([householdId,functionId])
+}
+model Member {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id],onDelete:Cascade)
+ name String
+ category String
+ diet String @default("")
+ attendance Attendance[]
+ @@index([householdId])
+}
+model Attendance {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id],onDelete:Cascade)
+ functionId String
+ function Function @relation(fields:[functionId],references:[id],onDelete:Cascade)
+ memberId String?
+ member Member? @relation(fields:[memberId],references:[id],onDelete:Cascade)
+ status String
+ @@index([householdId,functionId])
+}
+model PrivateToken {
+ id String @id @default(cuid())
+ hash String @unique
+ householdId String
+ household Household @relation(fields:[householdId],references:[id],onDelete:Cascade)
+ kind String
+ createdAt DateTime @default(now())
+ @@index([householdId])
+}
+model ChangeHistory {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id],onDelete:Cascade)
+ before String
+ after String
+ source String
+ createdAt DateTime @default(now())
+ @@index([householdId,createdAt])
+}
+model EmailOutbox {
+ id String @id @default(cuid())
+ dedupeKey String @unique
+ recipient String
+ subject String
+ body String
+ status String @default("PENDING")
+ createdAt DateTime @default(now())
+ preview DevelopmentMessage?
+}
+model DevelopmentMessage {
+ id String @id @default(cuid())
+ outboxId String @unique
+ outbox EmailOutbox @relation(fields:[outboxId],references:[id],onDelete:Cascade)
+ createdAt DateTime @default(now())
+}
+model RateLimit {
+ key String @id
+ count Int @default(1)
+ expiresAt DateTime
+}

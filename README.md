@@ -1,3 +1,5 @@
+> **Current database setup:** PostgreSQL/Supabase configuration replaces the SQLite runtime described below. Follow [Supabase and Vercel setup](docs/SUPABASE.md) for private credentials, restricted tester signup, migration safety, and deployment. The remaining SQLite instructions are historical; legacy seed/reset/setup commands are disabled.
+
 # Mehlivo — celebrations, together
 
 A responsive browser website built with Next.js, TypeScript, Better Auth, Prisma and a real local SQLite database. No paid services, external credentials, email delivery, payment screens or deployment are involved.

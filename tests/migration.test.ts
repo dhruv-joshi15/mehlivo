@@ -1,29 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { execFileSync, spawnSync } from "node:child_process";
-import { PrismaClient } from "@prisma/client";
-test("committed migration initializes a fresh SQLite database", async () => {
-  const folder = mkdtempSync(join(tmpdir(), "mehlivo-migration-"));
-  const path = join(folder, "test.db");
-  writeFileSync(path, "");
-  const url = "file:" + path;
-  const client = new PrismaClient({ datasourceUrl: url });
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+
+test("archived migration initializes a fresh SQLite database", async () => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const database = new DatabaseSync(":memory:");
   try {
-    execFileSync(
-      process.execPath,
-      ["node_modules/prisma/build/index.js", "migrate", "deploy"],
-      { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe" },
-    );
-    assert.equal(await client.user.count(), 0);
-    assert.equal(await client.event.count(), 0);
-    assert.equal(await client.privateToken.count(), 0);
-    assert.equal(await client.emailOutbox.count(), 0);
+    database.exec(readFileSync("prisma/sqlite/migrations/20261027070615_init/migration.sql", "utf8"));
+    for (const table of ["User", "Event", "PrivateToken", "EmailOutbox"]) {
+      assert.equal(database.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get()?.count, 0);
+    }
   } finally {
-    await client.$disconnect();
-    rmSync(folder, { recursive: true, force: true });
+    database.close();
   }
 });
 test("seed, reset and inbox operator commands refuse production", () => {
@@ -40,7 +29,7 @@ test("seed, reset and inbox operator commands refuse production", () => {
     assert.notEqual(result.status, 0, script);
     assert.match(
       result.stderr,
-      /production|local SQLite|local database|unavailable/i,
+      /disabled during the PostgreSQL transition/i,
     );
   }
 });
